@@ -57,4 +57,35 @@ export class OrdersService {
 
     return order;
   }
+
+  async findAllByStatus(orderFilterDto: OrderFilterDto) {
+    const { page, limit, status } = orderFilterDto;
+
+    const [total, orders] = await Promise.all([
+      this.prismaService.order.count({
+        where: { status },
+      }),
+      this.prismaService.order.findMany({
+        take: limit,
+        skip: (page - 1) * limit,
+        where: { status },
+      }),
+    ]);
+
+    const lastPage = Math.ceil(total / limit);
+    const nextPage = page < lastPage ? page + 1 : null;
+    const prevPage = page > 1 ? page - 1 : null;
+
+    return {
+      meta: {
+        total,
+        page,
+        limit,
+        lastPage,
+        nextPage,
+        prevPage: page > lastPage ? null : prevPage,
+      },
+      data: orders,
+    };
+  }
 }

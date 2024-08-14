@@ -35,4 +35,9 @@ export class OrdersController {
     console.log('updateOrderDto', updateOrderDto);
     throw new NotImplementedException('Method not implemented.');
   }
+
+  @MessagePattern('findAllOrdersByStatus')
+  findAllByStatus(@Payload() orderFilterDto: OrderFilterDto) {
+    return this.ordersService.findAllByStatus(orderFilterDto);
+  }
 }
