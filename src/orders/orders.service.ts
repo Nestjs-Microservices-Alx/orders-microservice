@@ -1,8 +1,8 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 
 import { RpcException } from '@nestjs/microservices';
-import { PaginationDto } from 'src/shared/dtos';
 import { PrismaService } from 'src/shared/services';
+import { OrderFilterDto } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 @Injectable()
@@ -15,14 +15,15 @@ export class OrdersService {
     });
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { page, limit } = paginationDto;
+  async findAll(orderFilterDto: OrderFilterDto) {
+    const { page, limit, ...rest } = orderFilterDto;
 
     const [total, orders] = await Promise.all([
       this.prismaService.order.count(),
       this.prismaService.order.findMany({
         take: limit,
         skip: (page - 1) * limit,
+        where: rest,
       }),
     ]);
 
