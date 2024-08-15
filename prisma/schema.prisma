@@ -24,11 +24,28 @@ model Order {
   id          String      @id @default(uuid())
   totalAmount Float
   totalItems  Int
-  status      OrderStatus
+  status      OrderStatus @default(PENDING)
 
   paid   Boolean   @default(false)
   paidAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // relations
+  OrderItem OrderItem[]
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+
+  // otro microservice
+  productId String
+
+  quantity Int
+  price    Float
+
+  // relations, foreign keys
+  Order   Order?  @relation(fields: [orderId], references: [id])
+  orderId String?
 }

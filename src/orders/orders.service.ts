@@ -10,9 +10,14 @@ export class OrdersService {
   constructor(private readonly prismaService: PrismaService) {}
 
   create(createOrderDto: CreateOrderDto) {
-    return this.prismaService.order.create({
+    return {
+      service: 'orders-microservice',
+      action: 'create',
       data: createOrderDto,
-    });
+    };
+    // return this.prismaService.order.create({
+    //   data: createOrderDto,
+    // });
   }
 
   async findAll(orderFilterDto: OrderFilterDto) {
