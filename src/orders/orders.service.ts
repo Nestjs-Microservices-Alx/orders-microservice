@@ -1,23 +1,48 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 
-import { RpcException } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
+
+import { firstValueFrom } from 'rxjs';
+import { PRODUCTS_SERVICE } from 'src/config';
 import { PrismaService } from 'src/shared/services';
 import { OrderFilterDto, StatusDto } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
 
-  create(createOrderDto: CreateOrderDto) {
-    return {
-      service: 'orders-microservice',
-      action: 'create',
-      data: createOrderDto,
-    };
-    // return this.prismaService.order.create({
-    //   data: createOrderDto,
-    // });
+    // microservices: mismo name q se uso al registrar el microservicio en el module `ClientsModule`
+    @Inject(PRODUCTS_SERVICE) private readonly productsClient: ClientProxy,
+  ) {}
+
+  async create(createOrderDto: CreateOrderDto) {
+    try {
+      const products = await firstValueFrom(
+        this.productsClient.send(
+          { cmd: 'find_products_by_ids' },
+          {
+            ids: createOrderDto.items.map((item) => item.productId),
+          },
+        ),
+      );
+
+      return {
+        service: 'orders-microservice',
+        action: 'create',
+        data: products,
+      };
+      // return this.prismaService.order.create({
+      //   data: createOrderDto,
+      // });
+    } catch (error) {
+      console.log(error);
+      throw new RpcException({
+        message: error?.message || 'Error creating order',
+        status: error?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      });
+    }
   }
 
   async findAll(orderFilterDto: OrderFilterDto) {
