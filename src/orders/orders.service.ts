@@ -1,8 +1,8 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-
 import { firstValueFrom } from 'rxjs';
+
 import { PRODUCTS_SERVICE } from 'src/config';
 import { PrismaService } from 'src/shared/services';
 import { OrderFilterDto, StatusDto } from './dto';
@@ -19,6 +19,7 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto) {
     try {
+      // validate products
       const products = await firstValueFrom(
         this.productsClient.send(
           { cmd: 'find_products_by_ids' },
@@ -28,16 +29,57 @@ export class OrdersService {
         ),
       );
 
+      // calculate total
+      const totalAmount = products.reduce((acc, product) => {
+        const item = createOrderDto.items.find(
+          (item) => item.productId === product.id,
+        );
+
+        return acc + item.quantity * product.price;
+      }, 0);
+      const totalItems = createOrderDto.items.reduce(
+        (acc, item) => acc + item.quantity,
+        0,
+      );
+
+      // perist in db
+      const order = await this.prismaService.order.create({
+        data: {
+          totalAmount,
+          totalItems,
+
+          // map items
+          OrderItem: {
+            createMany: {
+              data: createOrderDto.items.map((orderItem) => ({
+                quantity: orderItem.quantity,
+                productId: orderItem.productId,
+                price: products.find(
+                  (product) => product.id === orderItem.productId,
+                ).price,
+              })),
+            },
+          },
+        },
+        include: {
+          OrderItem: {
+            select: {
+              price: true,
+              quantity: true,
+              productId: true,
+            },
+          },
+        },
+      });
+
       return {
-        service: 'orders-microservice',
-        action: 'create',
-        data: products,
+        ...order,
+        OrderItem: order.OrderItem.map((item) => ({
+          ...item,
+          name: products.find((product) => product.id === item.productId).name,
+        })),
       };
-      // return this.prismaService.order.create({
-      //   data: createOrderDto,
-      // });
     } catch (error) {
-      console.log(error);
       throw new RpcException({
         message: error?.message || 'Error creating order',
         status: error?.status || HttpStatus.INTERNAL_SERVER_ERROR,

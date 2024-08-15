@@ -40,7 +40,7 @@ model OrderItem {
   id String @id @default(uuid())
 
   // otro microservice
-  productId String
+  productId Int
 
   quantity Int
   price    Float
