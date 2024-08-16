@@ -14,7 +14,7 @@ $ pnpm install
 # envs: based on .env.example
 
 # DB
-pnpm exec migrate dev
+pnpm exec prisma migrate dev
 ```
 
 ```bash
