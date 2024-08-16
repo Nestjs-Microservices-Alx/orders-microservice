@@ -3,7 +3,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 
-import { PRODUCTS_SERVICE } from 'src/config';
+import { NATS_SERVICE } from 'src/config';
 import { PrismaService } from 'src/shared/services';
 import { OrderFilterDto, StatusDto } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -14,14 +14,14 @@ export class OrdersService {
     private readonly prismaService: PrismaService,
 
     // microservices: mismo name q se uso al registrar el microservicio en el module `ClientsModule`
-    @Inject(PRODUCTS_SERVICE) private readonly productsClient: ClientProxy,
+    @Inject(NATS_SERVICE) private readonly client: ClientProxy,
   ) {}
 
   async create(createOrderDto: CreateOrderDto) {
     try {
       // validate products
       const products = await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'find_products_by_ids' },
           {
             ids: createOrderDto.items.map((item) => item.productId),
@@ -138,7 +138,7 @@ export class OrdersService {
     try {
       // get products
       const products = await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'find_products_by_ids' },
           {
             ids: order.OrderItem.map((item) => item.productId),

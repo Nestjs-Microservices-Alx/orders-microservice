@@ -5,9 +5,12 @@ interface EnvVars {
   PORT: number;
   DATABASE_URL: string;
 
-  // microservices
-  PRODUCTS_MICROSERVICE_HOST: string;
-  PRODUCTS_MICROSERVICE_PORT: number;
+  NATS_SERVERS: string;
+
+  // // // TCP no usar -----------------
+  // // microservices
+  // PRODUCTS_MICROSERVICE_HOST: string;
+  // PRODUCTS_MICROSERVICE_PORT: number;
 }
 
 // validate envs with joi schema
@@ -16,13 +19,14 @@ const envsSchema = joi
     PORT: joi.number().required(), // ya lo parsea a number
     DATABASE_URL: joi.string().required(),
 
-    // microservices
-    PRODUCTS_MICROSERVICE_HOST: joi.string().required(),
-    PRODUCTS_MICROSERVICE_PORT: joi.number().required(),
+    NATS_SERVERS: joi.array().items(joi.string()).required(),
   })
   .unknown(true); // allow other envs not defined in schema - process.env
 
-const { error, value } = envsSchema.validate(process.env);
+const { error, value } = envsSchema.validate({
+  ...process.env,
+  NATS_SERVERS: process.env.NATS_SERVERS?.split(','),
+});
 if (error) {
   throw new Error(`Config validation error: ${error.message}`);
 }
@@ -33,7 +37,5 @@ export const envs = {
   PORT: envsVars.PORT,
   DATABASE_URL: envsVars.DATABASE_URL, // aunq no se use fuera d prisma, lo incluimos para q se valide
 
-  // microservices
-  PRODUCTS_MICROSERVICE_HOST: envsVars.PRODUCTS_MICROSERVICE_HOST,
-  PRODUCTS_MICROSERVICE_PORT: envsVars.PRODUCTS_MICROSERVICE_PORT,
+  NATS_SERVERS: envsVars.NATS_SERVERS,
 };
