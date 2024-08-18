@@ -16,6 +16,7 @@ datasource db {
 // models
 enum OrderStatus {
   PENDING
+  PAID
   DELIVERED
   CANCELLED
 }
@@ -26,14 +27,16 @@ model Order {
   totalItems  Int
   status      OrderStatus @default(PENDING)
 
-  paid   Boolean   @default(false)
-  paidAt DateTime?
+  paid           Boolean   @default(false)
+  paidAt         DateTime?
+  stripeChargeId String? // stripe
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // relations
-  OrderItem OrderItem[]
+  OrderItem    OrderItem[] // 1:M
+  OrderReceipt OrderReceipt? // 1:1
 }
 
 model OrderItem {
@@ -48,4 +51,18 @@ model OrderItem {
   // relations, foreign keys
   Order   Order?  @relation(fields: [orderId], references: [id])
   orderId String?
+}
+
+model OrderReceipt {
+  id String @id @default(uuid())
+
+  // relations, foreign keys
+  order   Order  @relation(fields: [orderId], references: [id]) // 1:1
+  orderId String @unique // 1:1 in prisma
+
+  // stripe
+  receiptUrl String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

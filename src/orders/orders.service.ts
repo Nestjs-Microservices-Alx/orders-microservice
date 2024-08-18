@@ -1,15 +1,19 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 
+import { OrderStatus } from '@prisma/client';
 import { NATS_SERVICE } from 'src/config';
 import { PrismaService } from 'src/shared/services';
-import { OrderFilterDto, StatusDto } from './dto';
+import { OrderFilterDto, PaidOrderDto, StatusDto } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrderWithProducts } from './interfaces';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prismaService: PrismaService,
 
@@ -201,5 +205,46 @@ export class OrdersService {
       where: { id },
       data: { status },
     });
+  }
+
+  async createPaymentSession(order: OrderWithProducts) {
+    // observable to promise
+    const paymentSession = await firstValueFrom(
+      this.client.send('create.payment.session', {
+        orderId: order.id,
+        currency: 'usd',
+        items: order.OrderItem.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+      }),
+    );
+
+    return paymentSession;
+  }
+
+  async markOrderAsPaid(paidOrderDto: PaidOrderDto) {
+    this.logger.log(`Order ${paidOrderDto.orderId} paid started`);
+
+    await this.prismaService.order.update({
+      where: { id: paidOrderDto.orderId },
+      data: {
+        status: OrderStatus.PAID,
+        paid: true,
+        paidAt: new Date(),
+        stripeChargeId: paidOrderDto.stripePaymentId,
+
+        // relation does not need transactions xq maneja la transaccion x debajo
+        OrderReceipt: {
+          create: {
+            receiptUrl: paidOrderDto.receiptUrl,
+          },
+        },
+      },
+    });
+
+    this.logger.log(`Order ${paidOrderDto.orderId} marked as paid`);
   }
 }
